@@ -2,6 +2,8 @@
 using OpenQA.Selenium.Chrome;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,63 +14,54 @@ namespace DemoSeleniumPart2
     {
         static void Main(string[] args)
         {
-            List<StableCoin> StableCoinList = new List<StableCoin>();
-            ChromeDriverService cService = ChromeDriverService.CreateDefaultService();
-            cService.HideCommandPromptWindow = true;
-            ChromeDriver driver = new ChromeDriver(cService);
+            ChromeDriver driver = new ChromeDriver();
+            driver.Navigate().GoToUrl("https://www.w3schools.com/html/default.asp");
+            //var img_Element = driver.FindElement(By.Id("img_mylearning"));
+            string Script = @"let text = '';
+function getBase64Image(url) {
+  var promise = new Promise(function(resolve, reject) {
 
-            driver.Navigate().GoToUrl("https://coinmarketcap.com/vi/view/stablecoin/");
+    var img = new Image();
+    img.crossOrigin = 'Anonymous'; 
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      var dataURL = canvas.toDataURL('image/png');
+      resolve(dataURL.replace(/^data:image\/(png|jpg|jpeg|pdf);base64,/, ''));
+    };  
+    img.src = url;      
+  });
 
-            //Find table -> tbody -> tr tag
-            var tr_Tags = driver.FindElement(By.CssSelector("table.h7vnx2-2.czTsgW.cmc-table"))
-                .FindElement(By.TagName("tbody"))
-                .FindElements(By.TagName("tr"));
-            for (int i = 0; i < tr_Tags.Count; i++)
+  return promise;
+};
+
+var url = 'https://www.w3schools.com/images/mylearning.png';
+var promise = getBase64Image(url);
+
+await promise.then(function (dataURL) {
+  text = dataURL
+});
+return text";
+            string Base64Image = (string)((IJavaScriptExecutor)driver).ExecuteScript(Script);
+            var img = LoadImage(Base64Image);
+            img.Save("image.png");
+        }
+        public static Image LoadImage(string Base64Image)
+        {
+            //data:image/gif;base64,
+            //this image is a single pixel (black)
+            byte[] bytes = Convert.FromBase64String(Base64Image);
+
+            Image image;
+            using (MemoryStream ms = new MemoryStream(bytes))
             {
-                tr_Tags = driver.FindElement(By.CssSelector("table.h7vnx2-2.czTsgW.cmc-table"))
-                .FindElement(By.TagName("tbody"))
-                .FindElements(By.TagName("tr"));
-                var t = tr_Tags[i];
-                StableCoin stableCoin = new StableCoin();
-                var CellsOfName = t.FindElements(By.TagName("td"))[2]
-                    .FindElements(By.TagName("p"));
-                while (CellsOfName.Count == 0)
-                {
-                    ((IJavaScriptExecutor)driver).ExecuteScript("window.scrollBy(0, 500)");
-                    tr_Tags = driver.FindElement(By.CssSelector("table.h7vnx2-2.czTsgW.cmc-table"))
-                .FindElement(By.TagName("tbody"))
-                .FindElements(By.TagName("tr"));
-                    t = tr_Tags[i];
-                    CellsOfName = t.FindElements(By.TagName("td"))[2]
-                    .FindElements(By.TagName("p"));
-                }
-
-                stableCoin.Name = CellsOfName[0].Text + " - " + CellsOfName[1].Text;
-                stableCoin.Price = t.FindElements(By.TagName("td"))[3]
-                    .FindElement(By.TagName("span")).Text;
-
-                stableCoin._1Hour = (t.FindElements(By.TagName("td"))[4]
-                    .FindElements(By.ClassName("icon-Caret-up")).Count != 0 ? "" : "-")
-                    + t.FindElements(By.TagName("td"))[4]
-                    .FindElement(By.TagName("span")).Text;
-
-                stableCoin._24Hour = (t.FindElements(By.TagName("td"))[5]
-                    .FindElements(By.ClassName("icon-Caret-up")).Count != 0 ? "" : "-")
-                    + t.FindElements(By.TagName("td"))[5]
-                    .FindElement(By.TagName("span")).Text;
-
-                stableCoin._7Day = (t.FindElements(By.TagName("td"))[6]
-                    .FindElements(By.ClassName("icon-Caret-up")).Count != 0 ? "" : "-")
-                    + t.FindElements(By.TagName("td"))[6]
-                    .FindElement(By.TagName("span")).Text;
-
-                stableCoin.VHTT = t.FindElements(By.TagName("td"))[7].FindElements(By.TagName("p")).Count != 0 ?
-                    t.FindElements(By.TagName("td"))[7].FindElement(By.TagName("p")).Text : "";
-                stableCoin.KhoiLuong = t.FindElements(By.TagName("td"))[8]
-                    .FindElements(By.TagName("p")).Count != 0 ? t.FindElements(By.TagName("td"))[8]
-                    .FindElement(By.TagName("p")).Text : "";
-                StableCoinList.Add(stableCoin);
+                image = Image.FromStream(ms);
             }
+
+            return image;
         }
     }
 }
